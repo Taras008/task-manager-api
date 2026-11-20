@@ -1,5 +1,4 @@
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, Query, Request
@@ -7,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
+from app.schemas.common import MAX_PAGE, PaginationParams
 from app.services.auth import AuthService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -31,18 +31,8 @@ async def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-@dataclass(frozen=True, slots=True)
-class PaginationParams:
-    page: int
-    size: int
-
-    @property
-    def offset(self) -> int:
-        return (self.page - 1) * self.size
-
-
 def get_pagination(
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Annotated[int, Query(ge=1, le=MAX_PAGE)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginationParams:
     return PaginationParams(page=page, size=size)

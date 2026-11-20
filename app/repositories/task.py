@@ -32,6 +32,13 @@ class TaskRepository:
         )
         return result.scalar_one_or_none()
 
+    async def exists(self, task_id: int, *, lock_shared: bool = False) -> bool:
+        """Чи існує задача. `lock_shared` (FOR SHARE) не дає видалити її до кінця транзакції."""
+        stmt = select(Task.id).where(Task.id == task_id)
+        if lock_shared:
+            stmt = stmt.with_for_update(read=True, of=Task)
+        return (await self._session.execute(stmt)).scalar_one_or_none() is not None
+
     async def get_for_update(self, task_id: int) -> Task | None:
         """Те саме, що get, але з блокуванням рядка задачі (FOR UPDATE)."""
         result = await self._session.execute(
