@@ -10,9 +10,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.v1.router import api_router
 from app.api.v1.routers import health
 from app.db.session import create_engine, create_session_factory
 from app.domain.exceptions import (
+    AuthenticationError,
     BusinessRuleViolationError,
     DomainError,
     DomainValidationError,
@@ -24,6 +26,7 @@ from app.domain.exceptions import (
 logger = logging.getLogger(__name__)
 
 STATUS_BY_ERROR: dict[type[DomainError], int] = {
+    AuthenticationError: 401,
     NotFoundError: 404,
     PermissionDeniedError: 403,
     InvalidStatusTransitionError: 409,
@@ -52,7 +55,8 @@ async def domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
         (code for cls, code in STATUS_BY_ERROR.items() if isinstance(exc, cls)),
         400,
     )
-    return error_response(status_code, exc.code, exc.message, exc.details)
+    headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
+    return error_response(status_code, exc.code, exc.message, exc.details, headers)
 
 
 async def validation_error_handler(_: Request, exc: Exception) -> JSONResponse:
@@ -99,6 +103,7 @@ def create_app(session_factory: async_sessionmaker[AsyncSession] | None = None) 
     app.add_exception_handler(Exception, unhandled_error_handler)
 
     app.include_router(health.router)
+    app.include_router(api_router)
     return app
 
 
