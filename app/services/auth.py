@@ -1,3 +1,5 @@
+import asyncio
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +25,9 @@ class AuthService:
         email = email.strip().lower()
         if await self._users.get_by_email(email) is not None:
             raise EmailAlreadyRegisteredError("Email is already registered")
-        user = User(email=email, hashed_password=hash_password(password), created_at=clock.now())
+        # Argon2 CPU-важкий: виносимо з event loop.
+        hashed = await asyncio.to_thread(hash_password, password)
+        user = User(email=email, hashed_password=hashed, created_at=clock.now())
         try:
             await self._users.add(user)
             await self._session.commit()
@@ -35,9 +39,9 @@ class AuthService:
     async def authenticate(self, email: str, password: str) -> str:
         user = await self._users.get_by_email(email.strip().lower())
         if user is None:
-            verify_dummy_password(password)
+            await asyncio.to_thread(verify_dummy_password, password)
             raise AuthenticationError("Incorrect email or password")
-        if not verify_password(password, user.hashed_password):
+        if not await asyncio.to_thread(verify_password, password, user.hashed_password):
             raise AuthenticationError("Incorrect email or password")
         return create_access_token(str(user.id))
 

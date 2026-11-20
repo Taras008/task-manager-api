@@ -1,3 +1,8 @@
+import threading
+from collections.abc import Callable
+from typing import Any
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -79,3 +84,31 @@ async def test_register_login_me_flow(client: AsyncClient) -> None:
 
     assert me.status_code == 200
     assert me.json()["email"] == "flow@example.com"
+
+
+async def test_password_hashing_runs_off_event_loop(
+    client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services import auth as auth_service
+
+    loop_thread = threading.get_ident()
+    seen: dict[str, int] = {}
+
+    def spy(name: str, func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(*args: Any) -> Any:
+            seen[name] = threading.get_ident()
+            return func(*args)
+
+        return wrapper
+
+    for name in ("hash_password", "verify_password", "verify_dummy_password"):
+        monkeypatch.setattr(auth_service, name, spy(name, getattr(auth_service, name)))
+
+    await client.post(REGISTER, json={"email": "t@example.com", "password": "password123"})
+    await client.post(LOGIN, data={"username": "t@example.com", "password": "password123"})
+    await client.post(LOGIN, data={"username": "none@example.com", "password": "password123"})
+
+    assert set(seen) == {"hash_password", "verify_password", "verify_dummy_password"}
+    assert all(thread != loop_thread for thread in seen.values())
