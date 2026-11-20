@@ -1,11 +1,13 @@
 from datetime import timedelta
 
+import jwt
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core import clock
+from app.core.config import get_settings
 from app.core.security import create_access_token
 from app.models.user import User
 from tests.factories import auth_headers, create_user
@@ -66,3 +68,16 @@ async def test_me_for_deleted_user(
     response = await client.get(ME, headers=auth_headers(user.id))
 
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize("exp", ["tomorrow", 1e20])
+async def test_me_with_invalid_exp_is_401_not_500(client: AsyncClient, exp: object) -> None:
+    settings = get_settings()
+    token = jwt.encode(
+        {"sub": "1", "exp": exp}, settings.jwt_secret, algorithm=settings.jwt_algorithm
+    )
+
+    response = await client.get(ME, headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"

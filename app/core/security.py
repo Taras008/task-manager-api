@@ -46,8 +46,15 @@ def decode_access_token(token: str) -> str:
         )
     except jwt.PyJWTError as exc:
         raise AuthenticationError("Invalid authentication token") from exc
-    expires = datetime.fromtimestamp(payload["exp"], tz=UTC)
     subject = payload["sub"]
-    if expires <= clock.now() or not isinstance(subject, str):
+    exp = payload["exp"]
+    # bool — підклас int, але не є валідним exp.
+    if not isinstance(subject, str) or isinstance(exp, bool) or not isinstance(exp, int | float):
+        raise AuthenticationError("Invalid authentication token")
+    try:
+        expires = datetime.fromtimestamp(exp, tz=UTC)
+    except (ValueError, OverflowError, OSError) as exc:
+        raise AuthenticationError("Invalid authentication token") from exc
+    if expires <= clock.now():
         raise AuthenticationError("Invalid authentication token")
     return subject

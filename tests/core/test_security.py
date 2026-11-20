@@ -62,3 +62,14 @@ def test_token_without_required_claims_is_rejected(claims: dict[str, int | str |
 
     with pytest.raises(AuthenticationError):
         decode_access_token(token)
+
+
+@pytest.mark.parametrize("exp", ["tomorrow", 1e20, -1e20, True, None])
+def test_token_with_invalid_exp_is_rejected(exp: object) -> None:
+    settings = get_settings()
+    token = jwt.encode(
+        {"sub": "1", "exp": exp}, settings.jwt_secret, algorithm=settings.jwt_algorithm
+    )
+
+    with pytest.raises(AuthenticationError):
+        decode_access_token(token)
