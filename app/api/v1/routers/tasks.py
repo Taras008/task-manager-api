@@ -8,6 +8,7 @@ from app.schemas.task import (
     TaskCreate,
     TaskListFilters,
     TaskRead,
+    TaskStats,
     TaskStatusUpdate,
     TaskUpdate,
 )
@@ -15,7 +16,7 @@ from app.services.task import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
-# Увага: майбутні статичні маршрути (/overdue, /stats) оголошувати ДО /{task_id}.
+# Увага: статичні маршрути (/overdue, /stats) оголошені ДО /{task_id}.
 
 
 @router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
@@ -32,6 +33,18 @@ async def list_tasks(
     pagination: Pagination,
 ) -> Page[TaskRead]:
     return await TaskService(session).list(filters, pagination.page, pagination.size)
+
+
+@router.get("/overdue", response_model=Page[TaskRead])
+async def list_overdue_tasks(
+    user: CurrentUser, session: SessionDep, pagination: Pagination
+) -> Page[TaskRead]:
+    return await TaskService(session).list_overdue(pagination.page, pagination.size)
+
+
+@router.get("/stats", response_model=TaskStats)
+async def task_stats(user: CurrentUser, session: SessionDep) -> TaskStats:
+    return await TaskService(session).stats()
 
 
 @router.get("/{task_id}", response_model=TaskRead)

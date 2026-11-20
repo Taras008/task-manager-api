@@ -3,7 +3,7 @@ import math
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
-from app.domain.enums import TaskStatus
+from app.domain.enums import TaskPriority, TaskStatus
 from app.domain.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
 from app.domain.rules import (
     ensure_assignee_change_allowed,
@@ -19,7 +19,7 @@ from app.models.user import User
 from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
 from app.schemas.common import Page
-from app.schemas.task import TaskCreate, TaskListFilters, TaskRead, TaskUpdate
+from app.schemas.task import TaskCreate, TaskListFilters, TaskRead, TaskStats, TaskUpdate
 
 
 class TaskService:
@@ -58,14 +58,34 @@ class TaskService:
             raise PermissionDeniedError("Only the author can modify this task")
         return task
 
-    async def list(self, filters: TaskListFilters, page: int, size: int) -> Page[TaskRead]:
-        tasks, total = await self._tasks.list_page(filters, (page - 1) * size, size)
+    @staticmethod
+    def _page(tasks: list[Task], total: int, page: int, size: int) -> Page[TaskRead]:
         return Page[TaskRead](
             items=[TaskRead.model_validate(t) for t in tasks],
             total=total,
             page=page,
             size=size,
             pages=math.ceil(total / size),
+        )
+
+    async def list(self, filters: TaskListFilters, page: int, size: int) -> Page[TaskRead]:
+        tasks, total = await self._tasks.list_page(filters, (page - 1) * size, size)
+        return self._page(tasks, total, page, size)
+
+    async def list_overdue(self, page: int, size: int) -> Page[TaskRead]:
+        tasks, total = await self._tasks.list_overdue(clock.now(), (page - 1) * size, size)
+        return self._page(tasks, total, page, size)
+
+    async def stats(self) -> TaskStats:
+        row = await self._tasks.stats_row(clock.now())
+        return TaskStats(
+            total=row.total,
+            by_status={s: getattr(row, f"status_{s.value}") for s in TaskStatus},
+            by_priority={
+                p.name.lower(): getattr(row, f"priority_{p.name.lower()}") for p in TaskPriority
+            },
+            overdue=row.overdue,
+            active=row.active,
         )
 
     async def create(self, author: User, data: TaskCreate) -> Task:

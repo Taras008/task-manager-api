@@ -1,10 +1,11 @@
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Select, asc, desc, func, or_, select
+from sqlalchemy import ColumnElement, Row, Select, and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.domain.enums import SortOrder, TaskSortBy
+from app.domain.enums import SortOrder, TaskPriority, TaskSortBy, TaskStatus
 from app.domain.transitions import ACTIVE_STATUSES
 from app.models.task import Task
 from app.schemas.task import TaskListFilters
@@ -119,3 +120,40 @@ class TaskRepository:
         )
         rows = (await self._session.execute(stmt)).scalars().all()
         return list(rows), total
+
+    @staticmethod
+    def _overdue_clause(now: datetime) -> ColumnElement[bool]:
+        return and_(Task.deadline < now, Task.status.in_(ACTIVE_STATUSES))
+
+    async def list_overdue(self, now: datetime, offset: int, limit: int) -> tuple[list[Task], int]:
+        """Прострочені нетермінальні задачі (найстаріший дедлайн першим) + total."""
+        clause = self._overdue_clause(now)
+        total = (
+            await self._session.execute(select(func.count(Task.id)).where(clause))
+        ).scalar_one()
+        stmt = (
+            select(Task)
+            .where(clause)
+            .order_by(asc(Task.deadline), asc(Task.id))
+            .offset(offset)
+            .limit(limit)
+            .options(selectinload(Task.author), selectinload(Task.assignee))
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return list(rows), total
+
+    async def stats_row(self, now: datetime) -> Row[Any]:
+        """Усі лічильники одним запитом (COUNT ... FILTER)."""
+        columns: list[Any] = [func.count(Task.id).label("total")]
+        columns += [
+            func.count(Task.id).filter(Task.status == s).label(f"status_{s.value}")
+            for s in TaskStatus
+        ]
+        columns += [
+            func.count(Task.id).filter(Task.priority == p).label(f"priority_{p.name.lower()}")
+            for p in TaskPriority
+        ]
+        columns.append(func.count(Task.id).filter(self._overdue_clause(now)).label("overdue"))
+        columns.append(func.count(Task.id).filter(Task.status.in_(ACTIVE_STATUSES)).label("active"))
+        return (await self._session.execute(select(*columns))).one()
