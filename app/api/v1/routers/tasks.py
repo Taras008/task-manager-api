@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Query, Response, status
 
 from app.api.deps import CurrentUser, NotifierDep, Pagination, SessionDep
+from app.api.notifications import dispatch_events
 from app.schemas.common import Page
 from app.schemas.task import (
     TaskCreate,
@@ -12,7 +13,6 @@ from app.schemas.task import (
     TaskStatusUpdate,
     TaskUpdate,
 )
-from app.services.notifier import dispatch_events
 from app.services.task import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])

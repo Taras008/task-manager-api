@@ -168,3 +168,20 @@ async def test_events_do_not_leak_between_sequential_requests(
         ("assigned", first.json()["id"], assignee.id),
         ("assigned", second.json()["id"], assignee.id),
     ]
+
+
+async def test_self_assignment_does_not_notify(
+    nclient: AsyncClient, session_factory: SessionFactory, notifier: RecordingNotifier
+) -> None:
+    author = await create_user(session_factory)
+    headers = auth_headers(author.id)
+    r = await nclient.post(
+        TASKS, json={"title": "T", "deadline": DEADLINE, "assignee_id": author.id}, headers=headers
+    )
+    assert r.status_code == 201
+    other = await nclient.post(TASKS, json={"title": "T2", "deadline": DEADLINE}, headers=headers)
+    r = await nclient.patch(
+        f"{TASKS}/{other.json()['id']}", json={"assignee_id": author.id}, headers=headers
+    )
+    assert r.status_code == 200
+    assert notifier.calls == []

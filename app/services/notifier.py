@@ -1,10 +1,7 @@
 import logging
 from typing import Protocol
 
-from fastapi import BackgroundTasks
-
 from app.domain.enums import TaskStatus
-from app.domain.events import AssigneeAssigned, StatusChanged, TaskEvent
 
 logger = logging.getLogger(__name__)
 
@@ -61,23 +58,3 @@ class LoggingNotifier:
                 "assignee_id": assignee_id,
             },
         )
-
-
-def dispatch_events(
-    background_tasks: BackgroundTasks, notifier: Notifier, events: list[TaskEvent]
-) -> None:
-    """Планує нотифікації на після відправлення відповіді."""
-    for event in events:
-        match event:
-            case AssigneeAssigned():
-                background_tasks.add_task(
-                    notifier.notify_task_assigned, event.task_id, event.assignee_id
-                )
-            case StatusChanged():
-                background_tasks.add_task(
-                    notifier.notify_status_changed,
-                    event.task_id,
-                    event.assignee_id,
-                    event.old,
-                    event.new,
-                )

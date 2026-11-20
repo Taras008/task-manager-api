@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 # Довільна стала bigint-константа; ідентифікує lock воркера автоскасування.
 OVERDUE_LOCK_KEY = 7_340_001
+# Верхня межа одного тіку: завислий коннект не має блокувати воркер назавжди.
+DEFAULT_TICK_TIMEOUT_SECONDS = 30.0
 
 
 def _elapsed_ms(started: float) -> int:
@@ -80,14 +82,16 @@ async def run_forever(
     interval: float,
     stop: asyncio.Event,
     heartbeat_path: str,
+    tick_timeout: float = DEFAULT_TICK_TIMEOUT_SECONDS,
 ) -> None:
     """Цикл тіків. `stop` перевіряється лише між тіками, тож поточний тік завжди добігає кінця."""
     while not stop.is_set():
         try:
-            await run_once(session_factory, notifier)
+            await asyncio.wait_for(run_once(session_factory, notifier), timeout=tick_timeout)
             write_heartbeat(heartbeat_path)
         except Exception:
             # Heartbeat не оновлюємо: збійний тік має призвести до unhealthy.
+            # TimeoutError теж потрапляє сюди: транзакцію скасовано, наступний тік спробує знову.
             logger.exception("Overdue worker iteration failed")
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop.wait(), timeout=interval)

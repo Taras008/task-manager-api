@@ -103,7 +103,7 @@ def create_app(
     app = FastAPI(title="Task Management API", version="0.1.0", lifespan=lifespan)
     if session_factory is not None:
         app.state.session_factory = session_factory
-    app.state.notifier = notifier or LoggingNotifier()
+    app.state.notifier = LoggingNotifier() if notifier is None else notifier
 
     app.add_exception_handler(DomainError, domain_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)

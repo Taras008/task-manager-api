@@ -283,3 +283,30 @@ async def test_logging_notifier_message_contains_ids(caplog: pytest.LogCaptureFi
         await LoggingNotifier().notify_task_auto_cancelled(42, 7)
     assert "task_id=42" in caplog.text
     assert "assignee_id=7" in caplog.text
+
+
+async def test_hung_tick_times_out_and_loop_continues(
+    session_factory: SessionFactory,
+    notifier: RecordingNotifier,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    async def hang(*_: object) -> int:
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(3600)
+        return 0
+
+    monkeypatch.setattr(overdue, "run_once", hang)
+    path = tmp_path / "hb"
+    stop = asyncio.Event()
+    task = asyncio.create_task(
+        run_forever(session_factory, notifier, 0.05, stop, str(path), tick_timeout=0.05)
+    )
+    await asyncio.sleep(0.5)
+    stop.set()
+    await asyncio.wait_for(task, timeout=5)
+    assert calls >= 2  # після таймауту цикл продовжив
+    assert not exists(path)  # heartbeat не оновлювався

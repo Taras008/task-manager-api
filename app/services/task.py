@@ -109,7 +109,8 @@ class TaskService:
         await self._tasks.add(task)
         task_id = task.id
         await self._session.commit()
-        if data.assignee_id is not None:
+        # Не сповіщаємо про самопризначення (той самий принцип, що й у change_status).
+        if data.assignee_id is not None and data.assignee_id != author.id:
             self.events.append(AssigneeAssigned(task_id, data.assignee_id))
         return await self._load(task_id)
 
@@ -144,7 +145,7 @@ class TaskService:
         if changed:
             task.updated_at = clock.now()
         await self._session.commit()
-        if assignee_changes and new_assignee is not None:
+        if assignee_changes and new_assignee is not None and new_assignee != user.id:
             self.events.append(AssigneeAssigned(task_id, new_assignee))
         return await self._load(task_id)
 
