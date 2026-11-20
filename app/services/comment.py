@@ -35,10 +35,7 @@ class CommentService:
         await self._comments.add(comment)
         comment_id = comment.id
         await self._session.commit()
-        loaded = await self._comments.get(comment_id)
-        if loaded is None:
-            raise NotFoundError("Comment not found")
-        return loaded
+        return await self._comments.get(comment_id)
 
     async def list_for_task(self, task_id: int, pagination: PaginationParams) -> Page[CommentRead]:
         await self._ensure_task_exists(task_id)

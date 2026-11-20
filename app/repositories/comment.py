@@ -14,14 +14,17 @@ class CommentRepository:
         await self._session.flush()
         return comment
 
-    async def get(self, comment_id: int) -> Comment | None:
+    async def get(self, comment_id: int) -> Comment:
+        """Коментар з автором. Викликається лише для id, щойно створеного в цій самій
+        операції (коментарі не видаляються), тож відсутність рядка — це збій інваріанта:
+        `scalar_one` кидає NoResultFound, окремої обробки не потрібно."""
         result = await self._session.execute(
             select(Comment)
             .where(Comment.id == comment_id)
             .options(selectinload(Comment.author))
             .execution_options(populate_existing=True)
         )
-        return result.scalar_one_or_none()
+        return result.scalar_one()
 
     async def list_page(self, task_id: int, offset: int, limit: int) -> tuple[list[Comment], int]:
         """Сторінка коментарів задачі (2 запити + selectinload автора)."""

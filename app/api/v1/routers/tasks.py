@@ -41,14 +41,14 @@ async def list_tasks(
     filters: Annotated[TaskListFilters, Query()],
     pagination: Pagination,
 ) -> Page[TaskRead]:
-    return await TaskService(session).list(filters, pagination.page, pagination.size)
+    return await TaskService(session).list(filters, pagination)
 
 
 @router.get("/overdue", response_model=Page[TaskRead])
 async def list_overdue_tasks(
     user: CurrentUser, session: SessionDep, pagination: Pagination
 ) -> Page[TaskRead]:
-    return await TaskService(session).list_overdue(pagination.page, pagination.size)
+    return await TaskService(session).list_overdue(pagination)
 
 
 @router.get("/stats", response_model=TaskStats)
