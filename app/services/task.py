@@ -19,7 +19,7 @@ from app.models.task import Task
 from app.models.user import User
 from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
-from app.schemas.common import Page
+from app.schemas.common import Page, PaginationParams
 from app.schemas.task import TaskCreate, TaskListFilters, TaskRead, TaskStats, TaskUpdate
 
 
@@ -71,13 +71,15 @@ class TaskService:
             pages=math.ceil(total / size),
         )
 
-    async def list(self, filters: TaskListFilters, page: int, size: int) -> Page[TaskRead]:
-        tasks, total = await self._tasks.list_page(filters, (page - 1) * size, size)
-        return self._page(tasks, total, page, size)
+    async def list(self, filters: TaskListFilters, pagination: PaginationParams) -> Page[TaskRead]:
+        tasks, total = await self._tasks.list_page(filters, pagination.offset, pagination.size)
+        return self._page(tasks, total, pagination.page, pagination.size)
 
-    async def list_overdue(self, page: int, size: int) -> Page[TaskRead]:
-        tasks, total = await self._tasks.list_overdue(clock.now(), (page - 1) * size, size)
-        return self._page(tasks, total, page, size)
+    async def list_overdue(self, pagination: PaginationParams) -> Page[TaskRead]:
+        tasks, total = await self._tasks.list_overdue(
+            clock.now(), pagination.offset, pagination.size
+        )
+        return self._page(tasks, total, pagination.page, pagination.size)
 
     async def stats(self) -> TaskStats:
         row = await self._tasks.stats_row(clock.now())

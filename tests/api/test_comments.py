@@ -89,6 +89,33 @@ async def test_list_comments_chronological_with_pagination(
     assert [c["text"] for c in r.json()["items"]] == ["c0"]
 
 
+async def test_total_and_pages_with_partial_last_page(
+    client: AsyncClient, session_factory: SessionFactory
+) -> None:
+    user_id, task_id = await setup(session_factory)
+    for i in range(25):
+        await create_comment(
+            session_factory,
+            task_id,
+            user_id,
+            text=f"c{i}",
+            created_at=BASE + timedelta(minutes=i),
+        )
+    headers = auth_headers(user_id)
+
+    first = (await client.get(url(task_id), headers=headers, params={"page": 1, "size": 10})).json()
+    assert (first["total"], first["pages"], len(first["items"])) == (25, 3, 10)
+
+    last = (await client.get(url(task_id), headers=headers, params={"page": 3, "size": 10})).json()
+    assert (last["total"], last["page"], last["pages"]) == (25, 3, 3)
+    assert [c["text"] for c in last["items"]] == [f"c{i}" for i in range(20, 25)]
+
+    beyond = (
+        await client.get(url(task_id), headers=headers, params={"page": 4, "size": 10})
+    ).json()
+    assert (beyond["items"], beyond["total"], beyond["pages"]) == ([], 25, 3)
+
+
 async def test_list_empty(client: AsyncClient, session_factory: SessionFactory) -> None:
     user_id, task_id = await setup(session_factory)
     r = await client.get(url(task_id), headers=auth_headers(user_id))

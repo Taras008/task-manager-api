@@ -1,4 +1,4 @@
-.PHONY: up down logs migrate revision test lint
+.PHONY: up down clean logs migrate revision test lint
 
 COMPOSE ?= docker compose
 
@@ -7,6 +7,10 @@ up:
 
 down:
 	$(COMPOSE) down
+
+# Зупиняє стек і видаляє томи (БД). Лише для цього compose-проєкту.
+clean:
+	$(COMPOSE) down -v
 
 logs:
 	$(COMPOSE) logs -f api
