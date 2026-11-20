@@ -73,3 +73,8 @@ def test_token_with_invalid_exp_is_rejected(exp: object) -> None:
 
     with pytest.raises(AuthenticationError):
         decode_access_token(token)
+
+
+@pytest.mark.parametrize("broken", ["", "garbage", "$argon2id$broken", "$2b$12$notargon"])
+def test_verify_password_with_broken_hash_returns_false(broken: str) -> None:
+    assert verify_password("whatever", broken) is False

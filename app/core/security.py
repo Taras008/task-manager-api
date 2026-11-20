@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 from pwdlib import PasswordHash
+from pwdlib.exceptions import PwdlibError
 from pwdlib.hashers.argon2 import Argon2Hasher
 
 from app.core import clock
@@ -19,7 +20,11 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return _password_hash.verify(password, hashed)
+    """Невалідний/невідомий формат хешу трактуємо як невдалу перевірку (401), а не 500."""
+    try:
+        return _password_hash.verify(password, hashed)
+    except PwdlibError:
+        return False
 
 
 def verify_dummy_password(password: str) -> None:

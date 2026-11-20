@@ -4,8 +4,10 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.models.user import User
 from tests.factories import DEFAULT_PASSWORD, create_user
 
 REGISTER = "/api/v1/auth/register"
@@ -112,3 +114,19 @@ async def test_password_hashing_runs_off_event_loop(
 
     assert set(seen) == {"hash_password", "verify_password", "verify_dummy_password"}
     assert all(thread != loop_thread for thread in seen.values())
+
+
+async def test_login_with_corrupted_stored_hash_is_401(
+    client: AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    user = await create_user(session_factory, "broken@example.com")
+    async with session_factory() as session:
+        await session.execute(update(User).where(User.id == user.id).values(hashed_password="junk"))
+        await session.commit()
+
+    response = await client.post(
+        LOGIN, data={"username": "broken@example.com", "password": DEFAULT_PASSWORD}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
