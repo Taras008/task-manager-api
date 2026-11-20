@@ -1,7 +1,14 @@
 from collections.abc import AsyncIterator
+from typing import Annotated
 
-from fastapi import Request
+from fastapi import Depends, Request
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import User
+from app.services.auth import AuthService
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
@@ -9,3 +16,15 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     factory = request.app.state.session_factory
     async with factory() as session:
         yield session
+
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+async def get_current_user(
+    session: SessionDep, token: Annotated[str, Depends(oauth2_scheme)]
+) -> User:
+    return await AuthService(session).get_user_from_token(token)
+
+
+CurrentUser = Annotated[User, Depends(get_current_user)]

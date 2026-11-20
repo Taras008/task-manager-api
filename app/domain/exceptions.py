@@ -32,3 +32,13 @@ class DomainValidationError(DomainError):
     """Не плутати з pydantic ValidationError (напр. дедлайн у минулому)."""
 
     code = "validation_error"
+
+
+class AuthenticationError(DomainError):
+    """Відсутні/невалідні облікові дані або токен (→ 401)."""
+
+    code = "unauthorized"
+
+
+class EmailAlreadyRegisteredError(BusinessRuleViolationError):
+    code = "email_already_registered"
