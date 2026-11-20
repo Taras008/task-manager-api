@@ -1,7 +1,16 @@
-from fastapi import APIRouter, Response, status
+from typing import Annotated
 
-from app.api.deps import CurrentUser, SessionDep
-from app.schemas.task import TaskCreate, TaskRead, TaskStatusUpdate, TaskUpdate
+from fastapi import APIRouter, Query, Response, status
+
+from app.api.deps import CurrentUser, Pagination, SessionDep
+from app.schemas.common import Page
+from app.schemas.task import (
+    TaskCreate,
+    TaskListFilters,
+    TaskRead,
+    TaskStatusUpdate,
+    TaskUpdate,
+)
 from app.services.task import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -13,6 +22,16 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 async def create_task(data: TaskCreate, user: CurrentUser, session: SessionDep) -> TaskRead:
     task = await TaskService(session).create(user, data)
     return TaskRead.model_validate(task)
+
+
+@router.get("", response_model=Page[TaskRead])
+async def list_tasks(
+    user: CurrentUser,
+    session: SessionDep,
+    filters: Annotated[TaskListFilters, Query()],
+    pagination: Pagination,
+) -> Page[TaskRead]:
+    return await TaskService(session).list(filters, pagination.page, pagination.size)
 
 
 @router.get("/{task_id}", response_model=TaskRead)

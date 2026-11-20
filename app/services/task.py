@@ -1,3 +1,5 @@
+import math
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -16,7 +18,8 @@ from app.models.task import Task
 from app.models.user import User
 from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
-from app.schemas.task import TaskCreate, TaskUpdate
+from app.schemas.common import Page
+from app.schemas.task import TaskCreate, TaskListFilters, TaskRead, TaskUpdate
 
 
 class TaskService:
@@ -54,6 +57,16 @@ class TaskService:
         if task.author_id != user.id:
             raise PermissionDeniedError("Only the author can modify this task")
         return task
+
+    async def list(self, filters: TaskListFilters, page: int, size: int) -> Page[TaskRead]:
+        tasks, total = await self._tasks.list_page(filters, (page - 1) * size, size)
+        return Page[TaskRead](
+            items=[TaskRead.model_validate(t) for t in tasks],
+            total=total,
+            page=page,
+            size=size,
+            pages=math.ceil(total / size),
+        )
 
     async def create(self, author: User, data: TaskCreate) -> Task:
         now = clock.now()

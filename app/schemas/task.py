@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.domain.enums import TaskPriority, TaskStatus
+from app.domain.enums import SortOrder, TaskPriority, TaskSortBy, TaskStatus
 
 
 def _priority_from_name(value: object) -> object:
@@ -74,6 +74,34 @@ class TaskStatusUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: TaskStatus
+
+
+class TaskListFilters(BaseModel):
+    """Query-параметри списку задач (межі дедлайну включні).
+
+    extra="forbid" тут не можна: у ту саму query-модель потрапляють page/size.
+    """
+
+    search: Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=200)] = None
+    status: TaskStatus | None = None
+    priority: ApiPriority | None = None
+    assignee_id: int | None = None
+    deadline_from: AwareDatetime | None = None
+    deadline_to: AwareDatetime | None = None
+    sort_by: TaskSortBy | None = None
+    order: SortOrder = SortOrder.ASC
+
+    @model_validator(mode="after")
+    def _check_deadline_range(self) -> Self:
+        if self.search == "":
+            self.search = None
+        if (
+            self.deadline_from is not None
+            and self.deadline_to is not None
+            and self.deadline_from > self.deadline_to
+        ):
+            raise ValueError("deadline_from must not be later than deadline_to")
+        return self
 
 
 class TaskRead(BaseModel):
