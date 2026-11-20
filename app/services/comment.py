@@ -28,14 +28,15 @@ class CommentService:
         await self._ensure_task_exists(task_id, lock_shared=True)
         comment = Comment(
             task_id=task_id,
-            author_id=author.id,
+            author=author,
             text=data.text,
             created_at=clock.now(),
         )
         await self._comments.add(comment)
-        comment_id = comment.id
         await self._session.commit()
-        return await self._comments.get(comment_id)
+        # Без повторного читання після commit: паралельне видалення задачі каскадно видалить
+        # щойно створений коментар, і перечитування дало б 500. Автор уже в пам'яті.
+        return comment
 
     async def list_for_task(self, task_id: int, pagination: PaginationParams) -> Page[CommentRead]:
         await self._ensure_task_exists(task_id)
