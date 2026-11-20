@@ -1,0 +1,60 @@
+import logging
+from typing import Protocol
+
+from app.domain.enums import TaskStatus
+
+logger = logging.getLogger(__name__)
+
+
+class Notifier(Protocol):
+    """Інтерфейс нотифікацій. Приймає прості значення, а не ORM-об'єкти чи request-сесію."""
+
+    async def notify_task_assigned(self, task_id: int, assignee_id: int) -> None: ...
+
+    async def notify_status_changed(
+        self, task_id: int, assignee_id: int, old: TaskStatus, new: TaskStatus
+    ) -> None: ...
+
+    async def notify_task_auto_cancelled(self, task_id: int, assignee_id: int) -> None: ...
+
+
+class LoggingNotifier:
+    """Stub-реалізація: структурований лог замість реальної доставки."""
+
+    async def notify_task_assigned(self, task_id: int, assignee_id: int) -> None:
+        logger.info(
+            "Notification: task assigned task_id=%d assignee_id=%d",
+            task_id,
+            assignee_id,
+            extra={"event": "task_assigned", "task_id": task_id, "assignee_id": assignee_id},
+        )
+
+    async def notify_status_changed(
+        self, task_id: int, assignee_id: int, old: TaskStatus, new: TaskStatus
+    ) -> None:
+        logger.info(
+            "Notification: task status changed task_id=%d assignee_id=%d old=%s new=%s",
+            task_id,
+            assignee_id,
+            old.value,
+            new.value,
+            extra={
+                "event": "task_status_changed",
+                "task_id": task_id,
+                "assignee_id": assignee_id,
+                "old_status": old.value,
+                "new_status": new.value,
+            },
+        )
+
+    async def notify_task_auto_cancelled(self, task_id: int, assignee_id: int) -> None:
+        logger.info(
+            "Notification: task auto-cancelled (overdue) task_id=%d assignee_id=%d",
+            task_id,
+            assignee_id,
+            extra={
+                "event": "task_auto_cancelled",
+                "task_id": task_id,
+                "assignee_id": assignee_id,
+            },
+        )

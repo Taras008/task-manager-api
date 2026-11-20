@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.api.v1.routers import health
+from app.core.logging import configure_logging
 from app.db.session import create_engine, create_session_factory
 from app.domain.exceptions import (
     AuthenticationError,
@@ -22,6 +23,7 @@ from app.domain.exceptions import (
     NotFoundError,
     PermissionDeniedError,
 )
+from app.services.notifier import LoggingNotifier, Notifier
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +84,8 @@ async def unhandled_error_handler(_: Request, exc: Exception) -> JSONResponse:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Uvicorn не налаштовує root-логер: без цього INFO застосунку (нотифікації) не видно.
+    configure_logging()
     if not hasattr(app.state, "session_factory"):
         engine = create_engine()
         app.state.session_factory = create_session_factory(engine)
@@ -92,10 +96,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await engine_.dispose()
 
 
-def create_app(session_factory: async_sessionmaker[AsyncSession] | None = None) -> FastAPI:
+def create_app(
+    session_factory: async_sessionmaker[AsyncSession] | None = None,
+    notifier: Notifier | None = None,
+) -> FastAPI:
     app = FastAPI(title="Task Management API", version="0.1.0", lifespan=lifespan)
     if session_factory is not None:
         app.state.session_factory = session_factory
+    app.state.notifier = LoggingNotifier() if notifier is None else notifier
 
     app.add_exception_handler(DomainError, domain_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)

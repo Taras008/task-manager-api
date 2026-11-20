@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
 
     overdue_interval_seconds: int = 60
+    # Heartbeat воркера: файл, mtime якого оновлюється після кожного успішного тіку.
+    scheduler_heartbeat_path: str = "/tmp/scheduler-heartbeat"
 
     @model_validator(mode="after")
     def _check_prod_secret(self) -> Self:

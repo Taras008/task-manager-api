@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.schemas.common import MAX_PAGE, PaginationParams
 from app.services.auth import AuthService
+from app.services.notifier import Notifier
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -20,6 +21,14 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+def get_notifier(request: Request) -> Notifier:
+    notifier: Notifier = request.app.state.notifier
+    return notifier
+
+
+NotifierDep = Annotated[Notifier, Depends(get_notifier)]
 
 
 async def get_current_user(
