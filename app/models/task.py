@@ -39,6 +39,20 @@ class Task(Base):
         CheckConstraint("priority IN (1, 2, 3)", name="priority_valid"),
         Index("ix_tasks_assignee_id_status", "assignee_id", "status"),
         Index("ix_tasks_priority_deadline", "priority", "deadline"),
+        Index("ix_tasks_status", "status"),
+        Index("ix_tasks_created_at", "created_at"),
+        Index(
+            "ix_tasks_title_trgm",
+            "title",
+            postgresql_using="gin",
+            postgresql_ops={"title": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_tasks_description_trgm",
+            "description",
+            postgresql_using="gin",
+            postgresql_ops={"description": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
