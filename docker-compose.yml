@@ -58,6 +58,8 @@ services:
 
   db_test:
     image: postgres:16
+    # Лише для тестів: `make up` її не запускає (і не займає порт), `make test` — запускає явно.
+    profiles: ["test"]
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app

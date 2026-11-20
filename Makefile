@@ -1,16 +1,19 @@
 .PHONY: up down clean logs migrate revision test lint
 
 COMPOSE ?= docker compose
+# Порт тестової БД на хості (змініть, якщо 5433 зайнятий): TEST_DB_PORT=5434 make test
+TEST_DB_PORT ?= 5433
+export TEST_DB_PORT
 
 up:
 	$(COMPOSE) up --build -d
 
 down:
-	$(COMPOSE) down
+	$(COMPOSE) --profile test down
 
 # Зупиняє стек і видаляє томи (БД). Лише для цього compose-проєкту.
 clean:
-	$(COMPOSE) down -v
+	$(COMPOSE) --profile test down -v
 
 logs:
 	$(COMPOSE) logs -f api
@@ -23,7 +26,7 @@ revision:
 
 test:
 	$(COMPOSE) up -d --wait db_test
-	TEST_DATABASE_URL=postgresql+asyncpg://app:app@localhost:5433/app_test uv run pytest
+	TEST_DATABASE_URL=postgresql+asyncpg://app:app@localhost:$(TEST_DB_PORT)/app_test uv run pytest
 
 lint:
 	uv run ruff check .

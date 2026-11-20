@@ -65,7 +65,7 @@ API_PORT=8001
 | `migrate`   | one-shot: `alembic upgrade head`; `api` і `scheduler` чекають його завершення    |
 | `api`       | FastAPI (uvicorn)                                                                |
 | `scheduler` | фоновий воркер автоскасування прострочених задач (той самий образ), має healthcheck |
-| `db_test`   | окрема БД для тестів (порт 5433)                                                 |
+| `db_test`   | окрема БД для тестів (порт 5433); профіль `test`: `make up` її не запускає, `make test` — так |
 
 ### Приклад сценарію (curl)
 
@@ -101,6 +101,7 @@ curl -s -X POST $B/tasks -H "Authorization: Bearer $TOKEN" -H 'Content-Type: app
 | `OVERDUE_INTERVAL_SECONDS`    | `60`                                                    | Інтервал тіку воркера автоскасування                                 |
 | `SCHEDULER_HEARTBEAT_PATH`    | `/tmp/scheduler-heartbeat`                              | Heartbeat-файл воркера (для healthcheck)                             |
 | `API_PORT`                    | `8000`                                                  | Порт API на хості (лише docker-compose)                              |
+| `TEST_DB_PORT`                | `5433`                                                  | Порт тестової БД на хості: `TEST_DB_PORT=5434 make test`             |
 
 > **Безпека за замовчуванням.** `JWT_SECRET` у `.env.example` і `docker-compose.yml` — публічний
 > плейсхолдер, а `ENVIRONMENT=dev`, тож перевірка секрету для `prod` не активна. Перед розгортанням
@@ -300,7 +301,8 @@ FastAPI `BackgroundTasks` після відповіді: виконавцю пр
 ```bash
 make migrate               # alembic upgrade head
 make revision m="message"  # нова міграція (autogenerate + ручна перевірка)
-make test                  # піднімає db_test і запускає pytest
+make test                  # піднімає db_test (профіль test) і запускає pytest
+TEST_DB_PORT=5434 make test  # якщо 5433 зайнятий
 make lint                  # ruff check + ruff format --check + mypy (strict)
 ```
 
