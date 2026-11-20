@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, Row, Select, and_, asc, desc, func, or_, select
+from sqlalchemy import ColumnElement, Row, Select, and_, asc, desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -124,6 +124,16 @@ class TaskRepository:
     @staticmethod
     def _overdue_clause(now: datetime) -> ColumnElement[bool]:
         return and_(Task.deadline < now, Task.status.in_(ACTIVE_STATUSES))
+
+    async def cancel_overdue(self, now: datetime) -> int:
+        """Bulk-скасування прострочених нетермінальних задач; повертає кількість."""
+        result = await self._session.execute(
+            update(Task)
+            .where(self._overdue_clause(now))
+            .values(status=TaskStatus.CANCELLED, updated_at=now)
+            .execution_options(synchronize_session=False)
+        )
+        return int(result.rowcount)  # type: ignore[attr-defined]
 
     async def list_overdue(self, now: datetime, offset: int, limit: int) -> tuple[list[Task], int]:
         """Прострочені нетермінальні задачі (найстаріший дедлайн першим) + total."""

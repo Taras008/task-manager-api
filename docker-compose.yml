@@ -39,6 +39,15 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  scheduler:
+    build: .
+    command: ["python", "-m", "app.workers.overdue"]
+    environment: *app-env
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   db_test:
     image: postgres:16
     environment:
