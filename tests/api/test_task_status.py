@@ -303,3 +303,16 @@ async def test_status_change_not_blocked_by_limit(
     await fill_active(session_factory, a, b, 9)
     t = await create_task(session_factory, a, assignee_id=b)  # рівно 10
     assert (await set_status(client, a, t.id, "in_progress")).status_code == 200
+
+
+async def test_unassign_in_progress_then_review_is_rejected(
+    client: AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """Без виконавця задача не може дійти до review й застрягти там."""
+    a, b, _ = await users(session_factory)
+    t = await create_task(session_factory, a, assignee_id=b, status=S.IN_PROGRESS)
+    r = await client.patch(f"{TASKS}/{t.id}", headers=auth_headers(a), json={"assignee_id": None})
+    assert r.status_code == 200
+    r = await set_status(client, a, t.id, "review")
+    assert r.status_code == 409
+    assert r.json()["error"]["code"] == "business_rule_violation"

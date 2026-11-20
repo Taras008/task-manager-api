@@ -46,15 +46,14 @@ def test_valid_transition_allowed() -> None:
     ensure_transition_allowed(S.BACKLOG, S.IN_PROGRESS)
 
 
-@pytest.mark.parametrize("target", [S.IN_PROGRESS, S.DONE])
+@pytest.mark.parametrize("target", [S.IN_PROGRESS, S.REVIEW, S.DONE])
 def test_assignee_required(target: S) -> None:
     with pytest.raises(BusinessRuleViolationError):
         ensure_can_enter_status(target, None, FUTURE, NOW)
 
 
-@pytest.mark.parametrize("target", [S.REVIEW, S.CANCELLED])
-def test_assignee_not_required_for_other_targets(target: S) -> None:
-    ensure_can_enter_status(target, None, FUTURE, NOW)
+def test_assignee_not_required_for_cancelled() -> None:
+    ensure_can_enter_status(S.CANCELLED, None, FUTURE, NOW)
 
 
 def test_done_with_expired_deadline_rejected() -> None:

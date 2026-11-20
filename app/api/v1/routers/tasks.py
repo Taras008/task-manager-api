@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Query, Response, status
 
-from app.api.deps import CurrentUser, NotifierDep, Pagination, SessionDep
+from app.api.deps import CurrentUser, NotifierDep, Pagination, PathId, SessionDep
 from app.api.notifications import dispatch_events
 from app.schemas.common import Page
 from app.schemas.task import (
@@ -57,14 +57,14 @@ async def task_stats(user: CurrentUser, session: SessionDep) -> TaskStats:
 
 
 @router.get("/{task_id}", response_model=TaskRead)
-async def get_task(task_id: int, user: CurrentUser, session: SessionDep) -> TaskRead:
+async def get_task(task_id: PathId, user: CurrentUser, session: SessionDep) -> TaskRead:
     task = await TaskService(session).get(task_id)
     return TaskRead.model_validate(task)
 
 
 @router.patch("/{task_id}", response_model=TaskRead)
 async def update_task(
-    task_id: int,
+    task_id: PathId,
     data: TaskUpdate,
     user: CurrentUser,
     session: SessionDep,
@@ -79,7 +79,7 @@ async def update_task(
 
 @router.patch("/{task_id}/status", response_model=TaskRead)
 async def change_task_status(
-    task_id: int,
+    task_id: PathId,
     data: TaskStatusUpdate,
     user: CurrentUser,
     session: SessionDep,
@@ -93,6 +93,6 @@ async def change_task_status(
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(task_id: int, user: CurrentUser, session: SessionDep) -> Response:
+async def delete_task(task_id: PathId, user: CurrentUser, session: SessionDep) -> Response:
     await TaskService(session).delete(user, task_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
