@@ -105,3 +105,24 @@ async def test_service_error_order(session_factory: SF) -> None:
         await as_user(c, done.id, S.CANCELLED)
     with pytest.raises(InvalidStatusTransitionError):
         await as_user(a, done.id, S.CANCELLED)
+
+
+async def test_crossed_creates_do_not_deadlock(session_factory: SF) -> None:
+    """A→B і B→A одночасно: блокування виконавця не має конфліктувати з FK-перевіркою.
+
+    `FOR UPDATE` на користувачі конфліктує з `FOR KEY SHARE`, який INSERT задачі бере на
+    рядки автора й виконавця, — зустрічні створення тоді дають deadlock (500).
+    """
+    a = await create_user(session_factory, "a@example.com")
+    b = await create_user(session_factory, "b@example.com")
+    deadline = clock.now() + timedelta(days=1)
+
+    async def create(author: User, assignee: User) -> object:
+        data = TaskCreate(title="T", assignee_id=assignee.id, deadline=deadline)
+        return await run(session_factory, lambda s: s.create(author, data))
+
+    # 8 раундів: на кожного виконавця припадає по 8 задач, тож ліміт №7 (10) не спрацьовує.
+    for _ in range(8):
+        results = await asyncio.gather(create(a, b), create(b, a), return_exceptions=True)
+        failures = [r for r in results if isinstance(r, BaseException)]
+        assert failures == []

@@ -12,11 +12,17 @@ class UserRepository:
         return await self._session.get(User, user_id)
 
     async def get_for_update(self, user_id: int) -> User | None:
-        """Блокує рядок користувача — серіалізує перевірку ліміту активних задач."""
+        """Блокує рядок користувача — серіалізує перевірку ліміту активних задач.
+
+        `key_share=True` дає FOR NO KEY UPDATE: два такі локи конфліктують між собою (ліміт
+        серіалізується), але не з FOR KEY SHARE, який INSERT задачі бере на рядки автора й
+        виконавця для FK-перевірки. Звичайний FOR UPDATE давав deadlock при зустрічних
+        створеннях (A→B і B→A).
+        """
         result = await self._session.execute(
             select(User)
             .where(User.id == user_id)
-            .with_for_update()
+            .with_for_update(key_share=True)
             .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
