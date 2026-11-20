@@ -70,6 +70,12 @@ class TaskUpdate(BaseModel):
         return self
 
 
+class TaskStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: TaskStatus
+
+
 class TaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

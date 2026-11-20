@@ -1,7 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.domain.transitions import ACTIVE_STATUSES
 from app.models.task import Task
 
 
@@ -19,6 +20,25 @@ class TaskRepository:
             .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
+
+    async def get_for_update(self, task_id: int) -> Task | None:
+        """Те саме, що get, але з блокуванням рядка задачі (FOR UPDATE)."""
+        result = await self._session.execute(
+            select(Task)
+            .where(Task.id == task_id)
+            .options(selectinload(Task.author), selectinload(Task.assignee))
+            .with_for_update(of=Task)
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
+    async def count_active_for_assignee(self, assignee_id: int) -> int:
+        result = await self._session.execute(
+            select(func.count())
+            .select_from(Task)
+            .where(Task.assignee_id == assignee_id, Task.status.in_(ACTIVE_STATUSES))
+        )
+        return result.scalar_one()
 
     async def add(self, task: Task) -> Task:
         self._session.add(task)
