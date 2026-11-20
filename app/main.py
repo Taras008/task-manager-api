@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.api.v1.routers import health
+from app.core.logging import configure_logging
 from app.db.session import create_engine, create_session_factory
 from app.domain.exceptions import (
     AuthenticationError,
@@ -83,6 +84,8 @@ async def unhandled_error_handler(_: Request, exc: Exception) -> JSONResponse:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Uvicorn не налаштовує root-логер: без цього INFO застосунку (нотифікації) не видно.
+    configure_logging()
     if not hasattr(app.state, "session_factory"):
         engine = create_engine()
         app.state.session_factory = create_session_factory(engine)
