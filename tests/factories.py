@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core import clock
 from app.core.security import create_access_token, hash_password
 from app.domain.enums import TaskPriority, TaskStatus
+from app.models.comment import Comment
 from app.models.task import Task
 from app.models.user import User
 
@@ -26,6 +27,26 @@ async def create_user(
 
 def auth_headers(user_id: int) -> dict[str, str]:
     return {"Authorization": f"Bearer {create_access_token(str(user_id))}"}
+
+
+async def create_comment(
+    session_factory: async_sessionmaker[AsyncSession],
+    task_id: int,
+    author_id: int,
+    **overrides: Any,
+) -> Comment:
+    values: dict[str, Any] = {
+        "task_id": task_id,
+        "author_id": author_id,
+        "text": "Comment",
+        "created_at": clock.now(),
+    }
+    values.update(overrides)
+    async with session_factory() as session:
+        comment = Comment(**values)
+        session.add(comment)
+        await session.commit()
+        return comment
 
 
 async def create_task(
