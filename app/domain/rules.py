@@ -30,8 +30,15 @@ def ensure_transition_allowed(current: TaskStatus, target: TaskStatus) -> None:
 def ensure_can_enter_status(
     target: TaskStatus, assignee_id: int | None, deadline: datetime, now: datetime
 ) -> None:
-    """→ in_progress/done потребують виконавця; → done заборонено після дедлайну."""
-    if target in (TaskStatus.IN_PROGRESS, TaskStatus.DONE) and assignee_id is None:
+    """→ in_progress/review/done потребують виконавця; → done заборонено після дедлайну.
+
+    review теж: інакше виконавця можна зняти в in_progress, перевести задачу в review і застрягти
+    (done без виконавця заборонено, а виконавця в review змінювати не можна).
+    """
+    if (
+        target in (TaskStatus.IN_PROGRESS, TaskStatus.REVIEW, TaskStatus.DONE)
+        and assignee_id is None
+    ):
         raise BusinessRuleViolationError(
             f"Task cannot move to {target.value} without an assignee",
             details={"field": "assignee_id"},
