@@ -117,3 +117,13 @@ class TaskRead(BaseModel):
     updated_at: AwareDatetime
     author: UserBrief
     assignee: UserBrief | None
+
+
+class TaskStats(BaseModel):
+    """Глобальна статистика задач; by_status/by_priority містять усі ключі (навіть з 0)."""
+
+    total: int
+    by_status: dict[TaskStatus, int]
+    by_priority: dict[str, int]
+    overdue: int
+    active: int
