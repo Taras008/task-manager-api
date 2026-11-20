@@ -22,3 +22,11 @@ class StatusChanged:
 
 
 TaskEvent = AssigneeAssigned | StatusChanged
+
+
+@dataclass(frozen=True, slots=True)
+class TaskAutoCancelled:
+    """Задачу автоматично скасовано воркером (прострочений дедлайн)."""
+
+    task_id: int
+    assignee_id: int | None

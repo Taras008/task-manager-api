@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.domain.enums import SortOrder, TaskPriority, TaskSortBy, TaskStatus
+from app.domain.events import TaskAutoCancelled
 from app.domain.transitions import ACTIVE_STATUSES
 from app.models.task import Task
 from app.schemas.task import TaskListFilters
@@ -125,15 +126,19 @@ class TaskRepository:
     def _overdue_clause(now: datetime) -> ColumnElement[bool]:
         return and_(Task.deadline < now, Task.status.in_(ACTIVE_STATUSES))
 
-    async def cancel_overdue(self, now: datetime) -> int:
-        """Bulk-скасування прострочених нетермінальних задач; повертає кількість."""
+    async def cancel_overdue(self, now: datetime) -> list[TaskAutoCancelled]:
+        """Bulk-скасування прострочених нетермінальних задач.
+
+        RETURNING дає id та виконавця скасованих задач — для нотифікацій.
+        """
         result = await self._session.execute(
             update(Task)
             .where(self._overdue_clause(now))
             .values(status=TaskStatus.CANCELLED, updated_at=now)
+            .returning(Task.id, Task.assignee_id)
             .execution_options(synchronize_session=False)
         )
-        return int(result.rowcount)  # type: ignore[attr-defined]
+        return [TaskAutoCancelled(task_id=row.id, assignee_id=row.assignee_id) for row in result]
 
     async def list_overdue(self, now: datetime, offset: int, limit: int) -> tuple[list[Task], int]:
         """Прострочені нетермінальні задачі (найстаріший дедлайн першим) + total."""

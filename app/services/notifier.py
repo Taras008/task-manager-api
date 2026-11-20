@@ -18,6 +18,8 @@ class Notifier(Protocol):
         self, task_id: int, assignee_id: int, old: TaskStatus, new: TaskStatus
     ) -> None: ...
 
+    async def notify_task_auto_cancelled(self, task_id: int, assignee_id: int) -> None: ...
+
 
 class LoggingNotifier:
     """Stub-реалізація: структурований лог замість реальної доставки."""
@@ -39,6 +41,16 @@ class LoggingNotifier:
                 "assignee_id": assignee_id,
                 "old_status": old.value,
                 "new_status": new.value,
+            },
+        )
+
+    async def notify_task_auto_cancelled(self, task_id: int, assignee_id: int) -> None:
+        logger.info(
+            "Notification: task auto-cancelled (overdue)",
+            extra={
+                "event": "task_auto_cancelled",
+                "task_id": task_id,
+                "assignee_id": assignee_id,
             },
         )
 

@@ -1,6 +1,5 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -10,25 +9,13 @@ from app.core import clock
 from app.domain.enums import TaskStatus
 from app.main import create_app
 from tests.factories import auth_headers, create_task, create_user
+from tests.notifier import RecordingNotifier
 
 TASKS = "/api/v1/tasks"
 NOW = datetime(2030, 6, 1, 12, 0, tzinfo=UTC)
 DEADLINE = (NOW + timedelta(days=1)).isoformat()
 
 SessionFactory = async_sessionmaker[AsyncSession]
-
-
-class RecordingNotifier:
-    def __init__(self) -> None:
-        self.calls: list[tuple[Any, ...]] = []
-
-    async def notify_task_assigned(self, task_id: int, assignee_id: int) -> None:
-        self.calls.append(("assigned", task_id, assignee_id))
-
-    async def notify_status_changed(
-        self, task_id: int, assignee_id: int, old: TaskStatus, new: TaskStatus
-    ) -> None:
-        self.calls.append(("status", task_id, assignee_id, old, new))
 
 
 @pytest.fixture(autouse=True)
@@ -150,3 +137,34 @@ async def test_failed_requests_do_not_notify(
     )
     assert r.status_code == 403
     assert notifier.calls == []
+
+
+async def test_events_do_not_leak_between_sequential_requests(
+    nclient: AsyncClient, session_factory: SessionFactory, notifier: RecordingNotifier
+) -> None:
+    """TaskService створюється на кожен запит, тож events попереднього запиту не повторюються."""
+    author = await create_user(session_factory, email="a@example.com")
+    assignee = await create_user(session_factory, email="b@example.com")
+    headers = auth_headers(author.id)
+
+    first = await nclient.post(
+        TASKS,
+        json={"title": "T1", "deadline": DEADLINE, "assignee_id": assignee.id},
+        headers=headers,
+    )
+    assert notifier.calls == [("assigned", first.json()["id"], assignee.id)]
+
+    # Другий запит без подій не має повторити нотифікацію першого.
+    second = await nclient.post(TASKS, json={"title": "T2", "deadline": DEADLINE}, headers=headers)
+    assert second.status_code == 201
+    assert len(notifier.calls) == 1
+
+    # Третій запит із власною подією додає рівно одну нотифікацію.
+    r = await nclient.patch(
+        f"{TASKS}/{second.json()['id']}", json={"assignee_id": assignee.id}, headers=headers
+    )
+    assert r.status_code == 200
+    assert notifier.calls == [
+        ("assigned", first.json()["id"], assignee.id),
+        ("assigned", second.json()["id"], assignee.id),
+    ]

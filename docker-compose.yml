@@ -44,6 +44,14 @@ services:
     command: ["python", "-m", "app.workers.overdue"]
     environment: *app-env
     restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      # Heartbeat-файл свіжіший за 3 інтервали тіку (див. app/workers/heartbeat.py).
+      test: ["CMD", "python", "-m", "app.workers.heartbeat"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       migrate:
         condition: service_completed_successfully
