@@ -24,7 +24,6 @@ class TaskRepository:
         self._session = session
 
     async def get(self, task_id: int) -> Task | None:
-        """Задача з автором і виконавцем (без N+1)."""
         result = await self._session.execute(
             select(Task)
             .where(Task.id == task_id)
@@ -42,7 +41,6 @@ class TaskRepository:
         return (await self._session.execute(stmt)).scalar_one_or_none() is not None
 
     async def get_for_update(self, task_id: int) -> Task | None:
-        """Те саме, що get, але з блокуванням рядка задачі (FOR UPDATE)."""
         result = await self._session.execute(
             select(Task)
             .where(Task.id == task_id)
@@ -94,7 +92,6 @@ class TaskRepository:
     @staticmethod
     def _order_by(filters: TaskListFilters) -> list[Any]:
         if filters.sort_by is None:
-            # Дефолт: пріоритет ↓, дедлайн ↑, id ↑.
             return [desc(Task.priority), asc(Task.deadline), asc(Task.id)]
         column = {
             TaskSortBy.CREATED_AT: Task.created_at,
@@ -107,7 +104,6 @@ class TaskRepository:
     async def list_page(
         self, filters: TaskListFilters, offset: int, limit: int
     ) -> tuple[list[Task], int]:
-        """Сторінка задач + загальна кількість (2 запити + 2 selectinload)."""
         total = (
             await self._session.execute(self._apply_filters(select(func.count(Task.id)), filters))
         ).scalar_one()
@@ -141,7 +137,6 @@ class TaskRepository:
         return [TaskAutoCancelled(task_id=row.id, assignee_id=row.assignee_id) for row in result]
 
     async def list_overdue(self, now: datetime, offset: int, limit: int) -> tuple[list[Task], int]:
-        """Прострочені нетермінальні задачі (найстаріший дедлайн першим) + total."""
         clause = self._overdue_clause(now)
         total = (
             await self._session.execute(select(func.count(Task.id)).where(clause))

@@ -28,9 +28,6 @@ async def set_status(client: AsyncClient, user: int, task: int, status: str):  #
     )
 
 
-# --- Переходи ---
-
-
 async def test_happy_path_to_done(
     client: AsyncClient, session_factory: async_sessionmaker[AsyncSession]
 ) -> None:
@@ -125,9 +122,6 @@ async def test_done_before_deadline_ok(
     assert (await set_status(client, a, t.id, "done")).status_code == 200
 
 
-# --- Права, помилки входу ---
-
-
 async def test_assignee_can_change_status(
     client: AsyncClient, session_factory: async_sessionmaker[AsyncSession]
 ) -> None:
@@ -175,9 +169,6 @@ async def test_status_not_editable_via_patch(
     t = await create_task(session_factory, a)
     r = await client.patch(f"{TASKS}/{t.id}", headers=auth_headers(a), json={"status": "done"})
     assert r.status_code == 422
-
-
-# --- Read-only, виконавець, видалення ---
 
 
 @pytest.mark.parametrize("status", [S.DONE, S.CANCELLED])
@@ -238,9 +229,6 @@ async def test_delete_allowed(
     t = await create_task(session_factory, a, assignee_id=b, status=status)
     r = await client.delete(f"{TASKS}/{t.id}", headers=auth_headers(a))
     assert r.status_code == 204
-
-
-# --- Ліміт активних задач ---
 
 
 async def fill_active(

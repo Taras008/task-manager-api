@@ -30,7 +30,6 @@ class TaskService:
         self._session = session
         self._tasks = TaskRepository(session)
         self._users = UserRepository(session)
-        # Події для нотифікацій; наповнюються після успішного commit.
         self.events: list[TaskEvent] = []
 
     async def _ensure_assignee_exists(self, assignee_id: int) -> None:
@@ -111,7 +110,6 @@ class TaskService:
         await self._tasks.add(task)
         task_id = task.id
         await self._session.commit()
-        # Не сповіщаємо про самопризначення (той самий принцип, що й у change_status).
         if data.assignee_id is not None and data.assignee_id != author.id:
             self.events.append(AssigneeAssigned(task_id, data.assignee_id))
         return await self._load(task_id)
@@ -163,7 +161,6 @@ class TaskService:
         task.status = target
         task.updated_at = now
         await self._session.commit()
-        # Не сповіщаємо виконавця про його власну дію.
         if assignee_id is not None and assignee_id != user.id:
             self.events.append(StatusChanged(task_id, assignee_id, old_status, target))
         return await self._load(task_id)

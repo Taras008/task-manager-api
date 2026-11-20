@@ -34,9 +34,6 @@ async def make(sf: SessionFactory, author: int, **kw: Any) -> int:
     return (await create_task(sf, author, **kw)).id
 
 
-# --- базові властивості ---------------------------------------------------------------
-
-
 async def test_requires_auth(client: AsyncClient) -> None:
     r = await client.get(TASKS)
     assert r.status_code == 401
@@ -57,9 +54,6 @@ async def test_item_shape(client: AsyncClient, session_factory: SessionFactory) 
     assert item["priority"] == "high"
     assert item["author"]["id"] == author.id
     assert item["assignee"]["id"] == other.id
-
-
-# --- фільтри --------------------------------------------------------------------------
 
 
 async def test_filter_status(client: AsyncClient, session_factory: SessionFactory) -> None:
@@ -222,9 +216,6 @@ async def test_combined_filters(client: AsyncClient, session_factory: SessionFac
     assert body["total"] == 1
 
 
-# --- сортування -----------------------------------------------------------------------
-
-
 async def test_default_sort(client: AsyncClient, session_factory: SessionFactory) -> None:
     u = await create_user(session_factory)
     low = await make(session_factory, u.id, priority=TaskPriority.LOW, deadline=day(1))
@@ -281,9 +272,6 @@ async def test_order_without_sort_by_keeps_default_sort(
     assert ids(await fetch(client, u.id, order="asc")) == [hi, lo]
 
 
-# --- пагінація ------------------------------------------------------------------------
-
-
 async def test_pagination(client: AsyncClient, session_factory: SessionFactory) -> None:
     u = await create_user(session_factory)
     created = [await make(session_factory, u.id, deadline=day(i)) for i in range(1, 8)]
@@ -329,9 +317,6 @@ async def test_max_page_size(client: AsyncClient, session_factory: SessionFactor
     assert (await fetch(client, u.id, size=100))["size"] == 100
 
 
-# --- валідація ------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "params",
     [
@@ -367,9 +352,6 @@ async def test_list_route_does_not_shadow_task_by_id(
     t = await make(session_factory, u.id)
     r = await client.get(f"{TASKS}/{t}", headers=auth_headers(u.id))
     assert r.status_code == 200
-
-
-# --- кількість SQL-запитів ------------------------------------------------------------
 
 
 async def count_statements(engine: AsyncEngine, client: AsyncClient, user_id: int) -> int:
