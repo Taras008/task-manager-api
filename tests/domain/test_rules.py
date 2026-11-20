@@ -32,8 +32,6 @@ def test_now_and_future_deadline_allowed(delta: timedelta) -> None:
     validate_deadline_not_in_past(NOW + delta, NOW)
 
 
-# --- Етап 3: правила статусів ---
-
 FUTURE = NOW + timedelta(days=1)
 
 

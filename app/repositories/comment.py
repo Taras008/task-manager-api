@@ -15,7 +15,6 @@ class CommentRepository:
         return comment
 
     async def list_page(self, task_id: int, offset: int, limit: int) -> tuple[list[Comment], int]:
-        """Сторінка коментарів задачі (2 запити + selectinload автора)."""
         total = (
             await self._session.execute(
                 select(func.count(Comment.id)).where(Comment.task_id == task_id)

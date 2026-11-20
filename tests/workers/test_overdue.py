@@ -116,9 +116,6 @@ async def test_overdue_endpoint_empty_after_tick(
     assert (await client.get("/api/v1/tasks/overdue", headers=headers)).json()["total"] == 0
 
 
-# --- нотифікації автоскасування ---
-
-
 async def test_notifies_assignees_of_cancelled_tasks(
     session_factory: SessionFactory, notifier: RecordingNotifier
 ) -> None:
@@ -177,9 +174,6 @@ async def test_notifier_failure_does_not_break_tick(
     assert "Failed to notify" in caplog.text
 
 
-# --- структуровані логи ---
-
-
 async def test_tick_log_has_cancelled_and_duration(
     session_factory: SessionFactory, notifier: RecordingNotifier, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -202,9 +196,6 @@ async def test_lock_not_acquired_is_logged_separately(
     events = [getattr(r, "event", None) for r in caplog.records]
     assert "lock_not_acquired" in events
     assert "overdue_tick" not in events
-
-
-# --- heartbeat і graceful shutdown ---
 
 
 def test_heartbeat_freshness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
