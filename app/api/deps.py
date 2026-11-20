@@ -1,14 +1,17 @@
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, Query, Request
+from fastapi import Depends, Path, Query, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
-from app.schemas.common import MAX_PAGE, PaginationParams
+from app.schemas.common import MAX_BIGINT, MAX_PAGE, PaginationParams
 from app.services.auth import AuthService
 from app.services.notifier import Notifier
+
+# id у path у межах BIGINT: інакше asyncpg кидає помилку й клієнт бачить 500.
+PathId = Annotated[int, Path(ge=1, le=MAX_BIGINT)]
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 

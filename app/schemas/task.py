@@ -11,6 +11,7 @@ from pydantic import (
 )
 
 from app.domain.enums import SortOrder, TaskPriority, TaskSortBy, TaskStatus
+from app.schemas.common import BigId
 
 
 def _priority_from_name(value: object) -> object:
@@ -47,7 +48,7 @@ class TaskCreate(BaseModel):
     title: Title
     description: str | None = None
     priority: ApiPriority = TaskPriority.MEDIUM
-    assignee_id: int | None = None
+    assignee_id: BigId | None = None
     deadline: AwareDatetime
 
 
@@ -59,7 +60,7 @@ class TaskUpdate(BaseModel):
     title: Title | None = None
     description: str | None = None
     priority: ApiPriority | None = None
-    assignee_id: int | None = None
+    assignee_id: BigId | None = None
     deadline: AwareDatetime | None = None
 
     @model_validator(mode="after")
@@ -85,7 +86,7 @@ class TaskListFilters(BaseModel):
     search: Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=200)] = None
     status: TaskStatus | None = None
     priority: ApiPriority | None = None
-    assignee_id: int | None = None
+    assignee_id: BigId | None = None
     deadline_from: AwareDatetime | None = None
     deadline_to: AwareDatetime | None = None
     sort_by: TaskSortBy | None = None
