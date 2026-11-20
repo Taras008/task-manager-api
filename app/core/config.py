@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://app:app@localhost:5432/app"
     test_database_url: str = "postgresql+asyncpg://app:app@localhost:5433/app_test"
 
-    jwt_secret: str = "change-me"
+    jwt_secret: str = "dev-only-secret-change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
