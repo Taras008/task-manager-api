@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
 from app.domain.enums import TaskPriority, TaskStatus
+from app.domain.events import AssigneeAssigned, StatusChanged, TaskEvent
 from app.domain.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
 from app.domain.rules import (
     ensure_assignee_change_allowed,
@@ -29,6 +30,8 @@ class TaskService:
         self._session = session
         self._tasks = TaskRepository(session)
         self._users = UserRepository(session)
+        # Події для нотифікацій; наповнюються після успішного commit.
+        self.events: list[TaskEvent] = []
 
     async def _ensure_assignee_exists(self, assignee_id: int) -> None:
         if await self._users.get_by_id(assignee_id) is None:
@@ -106,6 +109,8 @@ class TaskService:
         await self._tasks.add(task)
         task_id = task.id
         await self._session.commit()
+        if data.assignee_id is not None:
+            self.events.append(AssigneeAssigned(task_id, data.assignee_id))
         return await self._load(task_id)
 
     async def get(self, task_id: int) -> Task:
@@ -139,6 +144,8 @@ class TaskService:
         if changed:
             task.updated_at = clock.now()
         await self._session.commit()
+        if assignee_changes and new_assignee is not None:
+            self.events.append(AssigneeAssigned(task_id, new_assignee))
         return await self._load(task_id)
 
     async def change_status(self, user: User, task_id: int, target: TaskStatus) -> Task:
@@ -148,9 +155,14 @@ class TaskService:
         now = clock.now()
         ensure_transition_allowed(task.status, target)
         ensure_can_enter_status(target, task.assignee_id, task.deadline, now)
+        old_status = task.status
+        assignee_id = task.assignee_id
         task.status = target
         task.updated_at = now
         await self._session.commit()
+        # Не сповіщаємо виконавця про його власну дію.
+        if assignee_id is not None and assignee_id != user.id:
+            self.events.append(StatusChanged(task_id, assignee_id, old_status, target))
         return await self._load(task_id)
 
     async def delete(self, user: User, task_id: int) -> None:

@@ -22,6 +22,7 @@ from app.domain.exceptions import (
     NotFoundError,
     PermissionDeniedError,
 )
+from app.services.notifier import LoggingNotifier, Notifier
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +93,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await engine_.dispose()
 
 
-def create_app(session_factory: async_sessionmaker[AsyncSession] | None = None) -> FastAPI:
+def create_app(
+    session_factory: async_sessionmaker[AsyncSession] | None = None,
+    notifier: Notifier | None = None,
+) -> FastAPI:
     app = FastAPI(title="Task Management API", version="0.1.0", lifespan=lifespan)
     if session_factory is not None:
         app.state.session_factory = session_factory
+    app.state.notifier = notifier or LoggingNotifier()
 
     app.add_exception_handler(DomainError, domain_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)

@@ -1,8 +1,8 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Query, Response, status
 
-from app.api.deps import CurrentUser, Pagination, SessionDep
+from app.api.deps import CurrentUser, NotifierDep, Pagination, SessionDep
 from app.schemas.common import Page
 from app.schemas.task import (
     TaskCreate,
@@ -12,6 +12,7 @@ from app.schemas.task import (
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.services.notifier import dispatch_events
 from app.services.task import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -20,8 +21,16 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
-async def create_task(data: TaskCreate, user: CurrentUser, session: SessionDep) -> TaskRead:
-    task = await TaskService(session).create(user, data)
+async def create_task(
+    data: TaskCreate,
+    user: CurrentUser,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+    notifier: NotifierDep,
+) -> TaskRead:
+    service = TaskService(session)
+    task = await service.create(user, data)
+    dispatch_events(background_tasks, notifier, service.events)
     return TaskRead.model_validate(task)
 
 
@@ -55,17 +64,31 @@ async def get_task(task_id: int, user: CurrentUser, session: SessionDep) -> Task
 
 @router.patch("/{task_id}", response_model=TaskRead)
 async def update_task(
-    task_id: int, data: TaskUpdate, user: CurrentUser, session: SessionDep
+    task_id: int,
+    data: TaskUpdate,
+    user: CurrentUser,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+    notifier: NotifierDep,
 ) -> TaskRead:
-    task = await TaskService(session).update(user, task_id, data)
+    service = TaskService(session)
+    task = await service.update(user, task_id, data)
+    dispatch_events(background_tasks, notifier, service.events)
     return TaskRead.model_validate(task)
 
 
 @router.patch("/{task_id}/status", response_model=TaskRead)
 async def change_task_status(
-    task_id: int, data: TaskStatusUpdate, user: CurrentUser, session: SessionDep
+    task_id: int,
+    data: TaskStatusUpdate,
+    user: CurrentUser,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+    notifier: NotifierDep,
 ) -> TaskRead:
-    task = await TaskService(session).change_status(user, task_id, data.status)
+    service = TaskService(session)
+    task = await service.change_status(user, task_id, data.status)
+    dispatch_events(background_tasks, notifier, service.events)
     return TaskRead.model_validate(task)
 
 
