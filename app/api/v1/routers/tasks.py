@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Response, status
 
 from app.api.deps import CurrentUser, SessionDep
-from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
+from app.schemas.task import TaskCreate, TaskRead, TaskStatusUpdate, TaskUpdate
 from app.services.task import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -26,6 +26,14 @@ async def update_task(
     task_id: int, data: TaskUpdate, user: CurrentUser, session: SessionDep
 ) -> TaskRead:
     task = await TaskService(session).update(user, task_id, data)
+    return TaskRead.model_validate(task)
+
+
+@router.patch("/{task_id}/status", response_model=TaskRead)
+async def change_task_status(
+    task_id: int, data: TaskStatusUpdate, user: CurrentUser, session: SessionDep
+) -> TaskRead:
+    task = await TaskService(session).change_status(user, task_id, data.status)
     return TaskRead.model_validate(task)
 
 
