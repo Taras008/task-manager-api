@@ -26,7 +26,9 @@ class LoggingNotifier:
 
     async def notify_task_assigned(self, task_id: int, assignee_id: int) -> None:
         logger.info(
-            "Notification: task assigned",
+            "Notification: task assigned task_id=%d assignee_id=%d",
+            task_id,
+            assignee_id,
             extra={"event": "task_assigned", "task_id": task_id, "assignee_id": assignee_id},
         )
 
@@ -34,7 +36,11 @@ class LoggingNotifier:
         self, task_id: int, assignee_id: int, old: TaskStatus, new: TaskStatus
     ) -> None:
         logger.info(
-            "Notification: task status changed",
+            "Notification: task status changed task_id=%d assignee_id=%d old=%s new=%s",
+            task_id,
+            assignee_id,
+            old.value,
+            new.value,
             extra={
                 "event": "task_status_changed",
                 "task_id": task_id,
@@ -46,7 +52,9 @@ class LoggingNotifier:
 
     async def notify_task_auto_cancelled(self, task_id: int, assignee_id: int) -> None:
         logger.info(
-            "Notification: task auto-cancelled (overdue)",
+            "Notification: task auto-cancelled (overdue) task_id=%d assignee_id=%d",
+            task_id,
+            assignee_id,
             extra={
                 "event": "task_auto_cancelled",
                 "task_id": task_id,

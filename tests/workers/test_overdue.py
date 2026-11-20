@@ -274,3 +274,12 @@ async def test_stop_waits_for_current_tick_to_finish(
     await asyncio.wait_for(task, timeout=5)
     assert finished == [True]  # тік не обірвано
     assert exists(path)  # heartbeat записано після нього
+
+
+async def test_logging_notifier_message_contains_ids(caplog: pytest.LogCaptureFixture) -> None:
+    from app.services.notifier import LoggingNotifier
+
+    with caplog.at_level(logging.INFO, logger="app.services.notifier"):
+        await LoggingNotifier().notify_task_auto_cancelled(42, 7)
+    assert "task_id=42" in caplog.text
+    assert "assignee_id=7" in caplog.text
